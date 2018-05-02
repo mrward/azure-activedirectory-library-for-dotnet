@@ -30,7 +30,9 @@ using System;
 using CoreFoundation;
 using Foundation;
 #if MAC
-using INSUrlProtocolClient = Foundation.NSUrlProtocolClient;
+using ObjCRuntime;
+using System.Runtime.InteropServices;
+using INSUrlProtocolClient = Microsoft.IdentityService.Clients.ActiveDirectory.CustomNSUrlProtocolClient;
 #endif
 
 namespace Microsoft.IdentityService.Clients.ActiveDirectory
@@ -58,7 +60,11 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
 
         [Export("initWithRequest:cachedResponse:client:")]
         public AdalCustomUrlProtocol(NSUrlRequest request, NSCachedUrlResponse cachedResponse,
+#if MAC
+            Foundation.NSUrlProtocolClient client)
+#else
             INSUrlProtocolClient client)
+#endif
             : base(request, cachedResponse, client)
         {
         }
@@ -89,7 +95,7 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
             {
                 this.handler = handler;
 #if MAC
-                client = ObjCRuntime.Runtime.GetINativeObject<INSUrlProtocolClient>(handler.WeakClient.Handle, false);
+                client = new CustomNSUrlProtocolClient (handler.WeakClient.Handle);
 #else
                 client = handler.Client;
 #endif
@@ -142,4 +148,108 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
             }
         }
     }
+#if MAC
+    class CustomNSUrlProtocolClient : IDisposable
+    {
+        IntPtr handle;
+
+        public IntPtr Handle { get { return handle; } }
+
+        public CustomNSUrlProtocolClient (IntPtr handle)
+        {
+            this.handle = handle;
+            DangerousRetain (handle);
+        }
+
+        ~CustomNSUrlProtocolClient ()
+        {
+            Dispose ();
+        }
+
+        public void Dispose ()
+        {
+            if (handle != IntPtr.Zero) {
+                DangerousRelease (handle);
+                handle = IntPtr.Zero;
+            }
+        }
+
+        internal static void DangerousRelease (IntPtr handle)
+        {
+            if (handle == IntPtr.Zero)
+                return;
+            Messaging.void_objc_msgSend (handle, Selector.GetHandle ("release"));
+        }
+
+        internal static void DangerousRetain (IntPtr handle)
+        {
+            if (handle == IntPtr.Zero)
+                return;
+            Messaging.void_objc_msgSend (handle, Selector.GetHandle ("retain"));
+        }
+
+        const string selUrlProtocolWasRedirectedToRequestRedirectResponse_ = "URLProtocol:wasRedirectedToRequest:redirectResponse:";
+        const string selUrlProtocolCachedResponseIsValid_ = "URLProtocol:cachedResponseIsValid:";
+        const string selUrlProtocolDidReceiveResponseCacheStoragePolicy_ = "URLProtocol:didReceiveResponse:cacheStoragePolicy:";
+        const string selUrlProtocolDidLoadData_ = "URLProtocol:didLoadData:";
+        const string selUrlProtocolDidFinishLoading_ = "URLProtocolDidFinishLoading:";
+        const string selUrlProtocolDidFailWithError_ = "URLProtocol:didFailWithError:";
+        const string selUrlProtocolDidReceiveAuthenticationChallenge_ = "URLProtocol:didReceiveAuthenticationChallenge:";
+        const string selUrlProtocolDidCancelAuthenticationChallenge_ = "URLProtocol:didCancelAuthenticationChallenge:";
+
+        public void Redirected (NSUrlProtocol protocol, NSUrlRequest redirectedToEequest, NSUrlResponse redirectResponse)
+        {
+            Messaging.void_objc_msgSend_IntPtr_IntPtr_IntPtr (this.Handle, Selector.GetHandle (selUrlProtocolWasRedirectedToRequestRedirectResponse_), protocol.Handle, redirectedToEequest.Handle, redirectResponse.Handle);
+        }
+
+        public void CachedResponseIsValid (NSUrlProtocol protocol, NSCachedUrlResponse cachedResponse)
+        {
+            Messaging.void_objc_msgSend_IntPtr_IntPtr (this.Handle, Selector.GetHandle (selUrlProtocolCachedResponseIsValid_), protocol.Handle, cachedResponse.Handle);
+        }
+
+        public void ReceivedResponse (NSUrlProtocol protocol, NSUrlResponse response, NSUrlCacheStoragePolicy policy)
+        {
+            Messaging.void_objc_msgSend_IntPtr_IntPtr_int (this.Handle, Selector.GetHandle (selUrlProtocolDidReceiveResponseCacheStoragePolicy_), protocol.Handle, response.Handle, (int)policy);
+        }
+
+        public void DataLoaded (NSUrlProtocol protocol, NSData data)
+        {
+            Messaging.void_objc_msgSend_IntPtr_IntPtr (this.Handle, Selector.GetHandle (selUrlProtocolDidLoadData_), protocol.Handle, data.Handle);
+        }
+
+        public void FinishedLoading (NSUrlProtocol protocol)
+        {
+            Messaging.void_objc_msgSend_IntPtr (this.Handle, Selector.GetHandle (selUrlProtocolDidFinishLoading_), protocol.Handle);
+        }
+
+        public void FailedWithError (NSUrlProtocol protocol, NSError error)
+        {
+            Messaging.void_objc_msgSend_IntPtr_IntPtr (this.Handle, Selector.GetHandle (selUrlProtocolDidFailWithError_), protocol.Handle, error.Handle);
+        }
+
+        public void ReceivedAuthenticationChallenge (NSUrlProtocol protocol, NSUrlAuthenticationChallenge challenge)
+        {
+            Messaging.void_objc_msgSend_IntPtr_IntPtr (this.Handle, Selector.GetHandle (selUrlProtocolDidReceiveAuthenticationChallenge_), protocol.Handle, challenge.Handle);
+        }
+
+        public void CancelledAuthenticationChallenge (NSUrlProtocol protocol, NSUrlAuthenticationChallenge challenge)
+        {
+            Messaging.void_objc_msgSend_IntPtr_IntPtr (this.Handle, Selector.GetHandle (selUrlProtocolDidCancelAuthenticationChallenge_), protocol.Handle, challenge.Handle);
+        }
+
+        class Messaging {
+            const string LIBOBJC_DYLIB = "/usr/lib/libobjc.dylib";
+            [DllImport (LIBOBJC_DYLIB, EntryPoint="objc_msgSend")]
+            public extern static void void_objc_msgSend (IntPtr receiver, IntPtr selector);
+            [DllImport (LIBOBJC_DYLIB, EntryPoint="objc_msgSend")]
+            public extern static void void_objc_msgSend_IntPtr_IntPtr_IntPtr (IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2, IntPtr arg3);
+            [DllImport (LIBOBJC_DYLIB, EntryPoint="objc_msgSend")]
+            public extern static void void_objc_msgSend_IntPtr_IntPtr (IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2);
+            [DllImport (LIBOBJC_DYLIB, EntryPoint="objc_msgSend")]
+            public extern static void void_objc_msgSend_IntPtr_IntPtr_int (IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2, int arg3);
+            [DllImport (LIBOBJC_DYLIB, EntryPoint="objc_msgSend")]
+            public extern static void void_objc_msgSend_IntPtr (IntPtr receiver, IntPtr selector, IntPtr arg1);
+        }
+    }
+#endif
 }
