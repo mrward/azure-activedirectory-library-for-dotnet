@@ -33,7 +33,7 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
     /// </summary>
     public class PlatformParameters : IPlatformParameters
     {
-        private PlatformParameters()
+        public PlatformParameters()
         {
         }
 
