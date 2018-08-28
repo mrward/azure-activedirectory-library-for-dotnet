@@ -67,7 +67,7 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
 #if MAC
                 this.parameters.CallerWindow.InvokeOnMainThread(() =>
                 {
-                    var windowController = new AuthenticationAgentNSWindowController(authorizationUri.AbsoluteUri, redirectUri.OriginalString, CallbackMethod);
+                    var windowController = new AuthenticationAgentNSWindowController(authorizationUri.AbsoluteUri, redirectUri.OriginalString, result => CallbackMethod (result));
                     windowController.Run(parameters.CallerWindow);
                 });
 #else
@@ -86,7 +86,7 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
             }
         }
 
-        private void CallbackMethod(AuthorizationResult result)
+        private static void CallbackMethod(AuthorizationResult result)
         {
             SetAuthorizationResult(result);
         }

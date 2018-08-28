@@ -45,7 +45,6 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
         const int DEFAULT_WINDOW_WIDTH = 420;
         const int DEFAULT_WINDOW_HEIGHT = 650;
 
-        WebView webView;
         NSProgressIndicator progressIndicator;
 
         NSWindow callerWindow;
@@ -158,11 +157,11 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
             var contentView = window.ContentView;
             contentView.AutoresizesSubviews = true;
 
-            webView = new WebView(contentView.Frame, null, null)
+            var webView = new WebView(contentView.Frame, null, null)
             {
-                FrameLoadDelegate = this,
-                PolicyDelegate = this,
-                ResourceLoadDelegate = this,
+                WeakFrameLoadDelegate = this,
+                WeakPolicyDelegate = this,
+                WeakResourceLoadDelegate = this,
                 AutoresizingMask = NSViewResizingMask.HeightSizable | NSViewResizingMask.WidthSizable,
                 AccessibilityIdentifier = "ADAL_SIGN_IN_WEBVIEW"
             };
@@ -285,7 +284,7 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
         }
 
         [Export("webView:didFinishLoadForFrame:")]
-        public void FinishedLoad(WebView sender, WebFrame forFrame)
+        public void FinishedLoad(WebView webView, WebFrame forFrame)
         {
             Window.Title = webView.MainFrameTitle ?? "Sign in";
 
