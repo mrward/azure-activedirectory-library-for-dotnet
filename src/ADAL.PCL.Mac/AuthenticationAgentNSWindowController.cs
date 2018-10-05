@@ -319,5 +319,11 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
             cookieStore.GiveCookies(mutableRequest);
             return mutableRequest;
         }
+
+        [Export("webView:resource:didFailLoadingWithError:fromDataSource:")]
+        void OnFailedLoading(WebView sender, NSObject identifier, NSError withError, WebDataSource dataSource)
+        {
+            PlatformPlugin.Logger.Warning(null, "OnFailedLoading " + withError.Description);
+        }
     }
 }
