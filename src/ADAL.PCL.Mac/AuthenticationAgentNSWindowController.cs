@@ -316,6 +316,7 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
             cookieStore.TakeCookies(redirectResponse);
 
             var mutableRequest = (NSMutableUrlRequest)request.MutableCopy();
+            UrlRequestHeaders.AddProxyHeader(mutableRequest);
             cookieStore.GiveCookies(mutableRequest);
             return mutableRequest;
         }
