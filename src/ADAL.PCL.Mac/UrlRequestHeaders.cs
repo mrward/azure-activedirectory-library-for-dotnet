@@ -26,7 +26,7 @@
 //------------------------------------------------------------------------------
 
 using System;
-using System.Linq;
+using System.Net;
 using CoreFoundation;
 using Foundation;
 
@@ -42,7 +42,7 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
             if (!StringComparer.OrdinalIgnoreCase.Equals(request.Url.Scheme, "https"))
                 return;
 
-            CFProxy proxy = GetProxy(request);
+            ProxyInfo proxy = GetProxy(request.Url);
             if (proxy == null || proxy.ProxyType != CFProxyType.HTTPS)
                 return;
 
@@ -63,14 +63,39 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
             request.Headers = headers;
         }
 
-        static CFProxy GetProxy(NSMutableUrlRequest request)
+        static ProxyInfo GetProxy(Uri requestUri)
         {
-            var settings = CoreFoundation.CFNetwork.GetSystemProxySettings();
-            var proxies = CoreFoundation.CFNetwork.GetProxiesForUri(request.Url, null);
-            return proxies.FirstOrDefault();
+            IWebProxy systemProxy = WebRequest.GetSystemWebProxy();
+            Uri proxyUri = systemProxy.GetProxy(requestUri);
+            var proxyAddress = new Uri(proxyUri.AbsoluteUri);
+
+            if (string.Equals(proxyAddress.AbsoluteUri, requestUri.AbsoluteUri))
+                return null;
+            if (systemProxy.IsBypassed(requestUri))
+                return null;
+
+            return new ProxyInfo
+            {
+                Port = proxyAddress.Port,
+                ProxyType = GetProxyType(requestUri),
+                HostName = proxyAddress.Host
+            };
         }
 
-        static NSUrlCredential GetProxyCredential(CFProxy proxy)
+        static CFProxyType GetProxyType(Uri requestUri)
+        {
+            switch (requestUri.Scheme.ToLower())
+            {
+                case "https":
+                    return CFProxyType.HTTPS;
+                case "http":
+                    return CFProxyType.HTTP;
+                default:
+                    return CFProxyType.None;
+            }
+        }
+
+        static NSUrlCredential GetProxyCredential(ProxyInfo proxy)
         {
             foreach (NSObject key in NSUrlCredentialStorage.SharedCredentialStorage.AllCredentials.Keys)
             {
@@ -78,8 +103,8 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
                 if (!IsProtectionSpaceForProject(protectionSpace, proxy))
                     continue;
 
-                // Only basic auth and HTTPS is supported.
-                if (proxy.ProxyType != CFProxyType.HTTPS || protectionSpace.AuthenticationMethod != NSUrlProtectionSpace.AuthenticationMethodHTTPBasic)
+                // Only basic auth is supported.
+                if (protectionSpace.AuthenticationMethod != NSUrlProtectionSpace.AuthenticationMethodHTTPBasic)
                     continue;
 
                 var dictionary = NSUrlCredentialStorage.SharedCredentialStorage.AllCredentials[key] as NSDictionary;
@@ -96,7 +121,7 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
             return null;
         }
 
-        static bool IsProtectionSpaceForProject(NSUrlProtectionSpace protectionSpace, CFProxy proxy)
+        static bool IsProtectionSpaceForProject(NSUrlProtectionSpace protectionSpace, ProxyInfo proxy)
         {
             return protectionSpace != null &&
                 protectionSpace.IsProxy &&
