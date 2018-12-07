@@ -34,13 +34,6 @@ namespace Microsoft.IdentityService.Clients.ActiveDirectory
 {
     public class WebUIFactory : IWebUIFactory
     {
-        public WebUIFactory()
-        {
-            // HACK: The WebUIFactory is initialized after the default HttpClientFactory is created so
-            // we use the creation of the WebUIFactory to replace the default HttpClientFactory.
-            PlatformPlugin.HttpClientFactory = new MacHttpClientFactory();
-        }
-
         public IWebUI CreateAuthenticationDialog(IPlatformParameters parameters)
         {
             return new WebUI(parameters);
