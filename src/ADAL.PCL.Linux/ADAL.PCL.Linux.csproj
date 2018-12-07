@@ -50,9 +50,7 @@
       <Link>AdalInitializer.cs</Link>
     </Compile>
     <Compile Include="PlatformInformation.cs" />
-    <Compile Include="..\ADAL.PCL.iOS\WebUIFactory.cs">
-      <Link>WebUIFactory.cs</Link>
-    </Compile>
+    <Compile Include="WebUIFactory.cs" />
     <Compile Include="..\ADAL.PCL.iOS\Logger.cs">
       <Link>Logger.cs</Link>
     </Compile>
